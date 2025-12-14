@@ -1,55 +1,26 @@
 version: 2.1
 
-aliases:
-  job_executor: &job_executor
-    machine:
-      image: ubuntu-2404:2024.11.1
-
 workflows:
   pull_request:
     jobs:
-      - checkout
-      - demo:
+      - tests:
           context:
             - docker-hub-credentials
-          requires:
-            - checkout
-          filters:
-            branches:
-              ignore:
-                - main
-      - presentation:
-          context:
-            - docker-hub-credentials
-          requires:
-            - checkout
           filters:
             branches:
               ignore:
                 - main
 
 jobs:
-  checkout:
-    working_directory: ~/project
-    docker:
-      - image: cimg/base:2025.06
+  tests:
+    machine:
+      image: ubuntu-2404:2025.09.1
     steps:
       - checkout
-      - persist_to_workspace:
-          root: .
-          paths:
-            - .
-
-  presentation:
-    working_directory: ~/project/presentation
-    <<: *job_executor
-    steps:
       - set_host_user_ids_environment_variable
-      - attach_workspace:
-          at: ~/project
       - run:
           name: Setup cache directory
-          command: ./.devcontainer/setup.sh
+          command: mkdir -p ~/.npm
       - run:
           name: Install the latest Task binary
           command: npm install -g @go-task/cli
@@ -73,59 +44,6 @@ jobs:
       - run:
           name: Lint the application code
           command: task tests:static:code:lint -- --format=junit -o test_results/eslint.xml
-      - store_artifacts:
-          path: test_results
-      - store_test_results:
-          path: test_results
-
-  demo:
-    <<: *job_executor
-    working_directory: ~/project/demo
-    steps:
-      - set_host_user_ids_environment_variable
-      - attach_workspace:
-          at: ~/project
-      - run:
-          name: Setup cache directory
-          command: ./.devcontainer/setup.sh
-      - run:
-          name: Install the latest Task binary
-          command: npm install -g @go-task/cli
-      - restore_cache:
-          keys:
-            - composer-{{ .Environment.CACHE_VERSION }}-{{ checksum "composer.lock" }}
-            - composer-{{ .Environment.CACHE_VERSION }}-
-      - run:
-          name: Install dependencies
-          command: task dependencies:install
-      - save_cache:
-          key: composer-{{ .Environment.CACHE_VERSION }}-{{ checksum "composer.lock" }}
-          paths:
-            - ./vendor
-      - run:
-          name: Create the test results directory
-          command: mkdir -p test_results
-      - run:
-          name: Check the code-style
-          command: task tests:code-style:check -- --format=junit > test_results/cs.xml
-      - run:
-          name: Run the static-analysis
-          command: task tests:static-analysis -- --error-format=junit > test_results/sa.xml
-      - run:
-          name: Run the unit tests
-          command: task tests:unit -- --log-junit test_results/unit.xml
-      - run:
-          name: Run the acceptance tests
-          command: task tests:acceptance -- --log-junit test_results/acceptance.xml
-      - run:
-          name: Start the database
-          command: task database:up database:migrate
-      - run:
-          name: Run the integration tests
-          command: task tests:integration -- --log-junit test_results/integration.xml
-      - run:
-          name: Run the end-to-end tests
-          command: task tests:end-to-end -- --log-junit test_results/e2e.xml
       - store_artifacts:
           path: test_results
       - store_test_results:

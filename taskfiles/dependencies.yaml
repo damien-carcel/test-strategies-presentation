@@ -5,14 +5,14 @@ tasks:
     aliases:
       - i
     cmds:
-      - docker compose run --rm presentation npm install
+      - docker compose run --rm dev npm install
     desc: Install dependencies
 
   update:
     aliases:
       - u
     cmds:
-      - docker compose run --rm presentation npm update
+      - docker compose run --rm dev npm update
     desc: Updates project dependencies to their latest version
     preconditions:
       - sh: test -d node_modules
@@ -22,7 +22,7 @@ tasks:
     aliases:
       - o
     cmds:
-      - docker compose run --rm presentation npm outdated
+      - docker compose run --rm dev npm outdated
     desc: Check for outdated project dependencies
     preconditions:
       - sh: test -d node_modules

@@ -5,17 +5,19 @@ tasks:
     aliases:
       - b
     cmds:
-      - docker compose run --rm --remove-orphans presentation bash
+      - docker compose run --rm --build --remove-orphans dev bash
     desc: Launch a shell in the development container
 
   dev:
-    cmds:
-      - docker compose up --detach --remove-orphans presentation
-    desc: Run the presentation development server
-
-  down:
     aliases:
       - d
+    cmds:
+      - docker compose up --build --detach --remove-orphans dev
+    desc: Run the development server
+
+  stop:
+    aliases:
+      - s
     cmds:
       - docker compose down -v --remove-orphans
     desc: Stop and remove the presentation containers
