@@ -4,46 +4,53 @@
 
 ### Introduction
 
+- Usual issues with tests:
+  - Too many tests using the database ⇒ relatively slow, not scalable.
+    - Illustrate with the end-to-end test.
+  - Massive use of mocks in unit tests to go faster
+    - Illustrate with the unit test with mocked repo.
+    - Makes refacto harder as it requires to update mocks.
+    - You could also forget to update a mock, and tests will still pass. Not good.
+      - Example: inverse arguments in a method call, the test will still pass.
+    - Makes tests coupled to the implementation ⇒ fragile and making refactoring painful.
+      - Give example of coupling => adding a call to a repository in a business service makes previous existing tests fail.
+
 - Reminder of what makes a "good" test ⇒ F.I.R.S.T. (Medium article that summarizes the topic well).
-- The different types of tests: unit, integration, end-to-end, application/functional.
-  - Keep it very simple for this part: the definitions of these terms vary greatly depending on the sources. What matters is what they mean to us, ensuring we all agree on the meaning of the term when we use it.
 
-### The state of tests at Obat
+- Recall the different "doubles" that exist (in-memory, stub, mock) and mocks are not the only solution.
+  - But when to use what?
+  - In memory => transition with hexagonal architecture and port/adapters.
 
-- Return to F.I.R.S.T. and emphasize that there has already been significant progress between the monolith and the services: clearer tests, clean and independent fixtures, no data retained between tests.
-- But there is room for improvement:
-  - Too many tests using the database ⇒ relatively slow.
-  - Mixing within "integration tests" of business tests and adapter tests (in the sense of hexagonal architecture).
-  - Massive use of mocks in unit tests, making tests coupled to the implementation ⇒ fragile and making refactoring painful.
-    - We can recall the different "doubles" that exist (in-memory, stub, mock).
-
-### How to improve
+### How to do better
 
 - Reminder of hexagonal architecture via a diagram to introduce the notion of "test boundaries."
-- Presentation of the concept of "acceptance tests": business tests, calling the command and query (use cases) and using an "in-memory" adapter for the "controlled" ports (on the right side of the hexagon): DB, file system, time, etc.
+- The different types of tests: unit, end-to-end, integration, acceptance.
+- Unit tests are fast and scalable.
+- Presentation of the concept of "acceptance tests":
+  - they focus on business, so are critical, but must be fast. They are kind of higher-level unit tests.
+  - Calling directly the use cases and using an "in-memory" adapter for the "controlled" ports (on the right side of the hexagon): DB, file system, time, etc.
   - The tests themselves can be seen as an adapter for the "controlling" ports (on the left side of the hexagon).
 - Integration tests complement acceptance tests by testing all implementations of controlled adapters (e.g., Doctrine repo + its in-memory double) via the same test.
   - Allows full confidence in acceptance tests since the "in-memory" adapters are reliable.
-- Current integration tests that test Symfony controllers and commands are actually "end-to-end" tests and should be reduced to the bare minimum, only on critical paths.
-  - Like acceptance tests, these tests do not break during refactoring.
-- Contract tests can be run "in-memory."
+- End-to-end tests that test Symfony controllers and commands should be reduced to the bare minimum, only on the most critical, valuable paths.
 
-### Questions/Discussion
+### Tradeoffs
 
-- Allocate time at the end of the presentation.
+- Require a good code design, with clear boundaries between domain and infrastructure.
+- Require a systematic "in memory" implementation of controlled ports => more work.
+  - If correctly designed, those ports do very little, and so are quick to test and implement.
 
-## Example
+## Examples
 
-- Simple use case of creating user account:
-  - Try to find a user with the same email ⇒ Will throw an exception if the user already exists.
-    - Just adding this feature breaks the unit test, as this repo call was not mocked previously, only the save was.
-  - Send an e-mail to the user to notify them their account was created.
-  - Tested both with unit tests and acceptance tests
-- Two refactorizations to be done each in a dedicated commit (will allow to link them in the presentation):
-  - Use a "get" instead of a "find" in the repository.
-  - Send the e-mail in a separate service following the dispatch of an event.
-  - Classic unit-test with mock will be broken by this simple refacto, acceptance test will not be.
-
-## Tasks
-
-- Serve the API with Franklin PHP.
+- Simple use case of creating a user account:
+  - [Bonus] Send an e-mail to the user to notify them their account was created.
+    - Dispatch a "UserCreated" event
+    - Use an event subscriber to send the e-mail.
+  - Tested with both unit tests and acceptance tests.
+  - Two flavors of unit tests: one with a real, in-memory repo (similar to acceptance tests) and one with a mocked repo instead.
+- Two evolutions to be done each in a dedicated PR (will allow linking them in the presentation):
+  - Additional feature: Check for e-mail uniqueness in persistence, throw an exception when e-mail is already used.
+    - No change at all for acceptance tests or unit tests with in-memory repo.
+  - Refactor the repository to throw an exception when a user is not found instead of returning null.
+    - Minimal changes for acceptance tests or unit tests with in-memory repo (just on the final assertion).
+    - Will break existing unit tests with mocked repo as we need to mock the call to get the user by e-mail, whether it returns a user or throws an exception.
