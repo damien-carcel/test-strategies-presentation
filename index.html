@@ -344,6 +344,311 @@ final readonly class CreateUser
 
     </section>
 
+    <section id="solution">
+
+      <section>
+        <h2 class="title">C'est quoi un "bon" test ?</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment"><br><b>F.I.R.S.T.</b></div>
+          <br>
+          <ul>
+            <li class="fragment"><b>F</b>ast : on veut un retour succès/échec rapide</li>
+            <li class="fragment"><b>I</b>solated : teste une chose et une seule, pas d'effets de bord</li>
+            <li class="fragment"><b>R</b>epeatable : un test doit être stable</li>
+            <li class="fragment"><b>S</b>elf-validating : pas de doute sur le succès ou l'échec</li>
+            <li class="fragment"><b>T</b>hourough : couvre tout le métier</li>
+          </ul>
+        </div>
+
+        <aside class="notes">
+          - Rapide, isolé, répétable, auto-validant, approfondi/opportun.
+          - Effets de bords = couplage.
+          - Self-validating : si une refacto casse votre test, alors il n'est pas auto-validant. Donc il ne doit pas
+          être couplé.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">C'est quoi un "bon" test ?</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment"><br>Focalisé sur le métier</div>
+          <div class="fragment"><br>Simple</div>
+        </div>
+
+        <aside class="notes">
+          - Simple => un test doit pouvoir servir de documentation du métier
+          - Des mocks qu'on doit changer au cours du développement n'aident pas à cette simplicité
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Il n'y a pas que les mocks dans la vie</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment"><b>Doublures (test doubles)</b></div>
+          <br>
+          <ul>
+            <li class="fragment">Stub : simple description</li>
+            <li class="fragment">Mock : doit être exécuté</li>
+            <li class="fragment">Spy : vérification après exécution</li>
+            <li class="fragment">…</li>
+            <li class="fragment">Double en mémoire</li>
+          </ul>
+        </div>
+
+        <aside class="notes">
+          - Le double en mémoire est une vraie implémentation, pleinement fonctionnelle, contrairement aux mocks, stubs
+          et spies.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">L'architecture hexagonale</h2>
+
+        <div class="centered-slide-content">
+          <img class="fragment" alt="hexagonal.png" src="images/hexagonal.png"/>
+        </div>
+
+        <aside class="notes">
+          - Créée en 2005 par Alistair Cockburn (pronounced Cōburn)
+          - Côté gauche : contrôleur, côté droit = contrôlé => inversion de dépendance
+          - Les détails d'implémentation vont dans les adaptateurs, hors de la logique métier
+          - Les tests peuvent être vu comme un adaptateur contrôlant
+          - Oubliez les layers multiples, ce n'est pas de la clean architecture
+          - Ce n'est pas non plus du DDD ou du CQRS
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Exemple d'adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class DatabaseUserRepository extends ServiceEntityRepository implements UserRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, User::class);
+    }
+
+    public function save(User ...$users): void
+    {
+        foreach ($users as $user) {
+            $this->getEntityManager()->persist($user);
+        }
+        $this->getEntityManager()->flush();
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          - L'interface est le "port".
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Exemple d'adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class InMemoryUserRepository implements UserRepository
+{
+    /** @var User[] */
+    private array $users = [];
+
+    public function save(User ...$users): void
+    {
+        foreach ($users as $user) {
+            $this->users[] = clone $user;
+        }
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Tester les adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class UserRepositoryTest extends AbstractIntegrationTestCase
+{
+    private readonly UserRepository $repository;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->repository = self::getService(UserRepository::class);
+    }
+
+    #[Group('with-in-memory-adapters')]
+    #[Group('with-production-adapters')]
+    public function testItSavesAUser(): void
+    {
+        $user = new User('john.doe@email.com', 'John', 'Doe');
+
+        $this->repository->save($user);
+
+        $this->assertUserIsStored($user);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          - Test d'intégration => intégration avec les élémentes extérieurs à l'application (système de fichier, base de
+          donnée, etc.)
+          - /!\ Un seul test pour tous les adaptateurs d'un même port => garantie la fiabilité de l'implémentation "in
+          memory"
+          - Le repo doit être correctement testé : Thourough !
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Tester les adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+abstract class AbstractIntegrationTestCase extends KernelTestCase
+{
+    protected static function bootKernel(array $options = []): KernelInterface
+    {
+        $testEnvironment = self::getCurrentTestEnvironment();
+
+        if (!\in_array($testEnvironment, ['memory', 'test'], true)) {
+            throw new \RuntimeException(
+                "Invalid TEST_ENV environment variable value \"$testEnvironment\".,
+            );
+        }
+
+        $options = array_merge($options, ['environment' => $testEnvironment]);
+
+        return parent::bootKernel($options);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Tester le métier unitairement</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItCreatesAUser(): void
+    {
+        $userRepository = new InMemoryUserRepository();
+        $createUser = new CreateUser($userRepository);
+
+        ($createUser)('john.doe@email.com', 'John', 'Doe');
+
+        $retrievedUser = $userRepository->getByEmail('john.doe@email.com');
+        self::assertSame($userEmail, $retrievedUser->email);
+        self::assertSame('John', $retrievedUser->firstname);
+        self::assertSame('Doe', $retrievedUser->lastname);
+    }
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          - Pas de couplage avec l'implémentation
+          - Ce test ne cassera pas lors de l'ajout de fonctionnalités comme vérifier si un utilisateur existe déjà =>
+          isolé et auto-validant
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et avec le framework ?</h2>
+
+        <div class="centered-slide-content">
+          <pre class="fragment" style="font-size: large"><code class="php">
+final class CreateUserTest extends AbstractAcceptanceTestCase
+{
+    private CreateUser $createUser;
+    private UserRepository $userRepository;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->createUser = self::getService(CreateUser::class);
+        $this->userRepository = self::getService(UserRepository::class);
+    }
+
+    public function testItCreatesAUser(): void
+    {
+        ($this->createUser)('john.doe@email.com', 'John', 'Doe');
+
+        $retrievedUser = $this->userRepository->getByEmail($userEmail);
+        self::assertSame('john.doe@email.com', $retrievedUser->email);
+        self::assertSame('John', $retrievedUser->firstname);
+        self::assertSame('Doe', $retrievedUser->lastname);
+    }
+}
+          </code></pre>
+
+          <div class="fragment">Tests "d'acceptance"</div>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et avec le framework ?</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+abstract class AbstractAcceptanceTestCase extends KernelTestCase
+{
+    protected static function bootKernel(array $options = []): KernelInterface
+    {
+        $options = array_merge($options, ['environment' => 'memory']);
+
+        return parent::bootKernel($options);
+    }
+}
+          </code></pre>
+          <pre class="fragment" style="font-size: large"><code class="yaml">
+# config/services.yaml
+when@memory:
+    services:
+        App\Domain\Repository\UserRepository:
+            class: App\Infrastructure\Persistence\InMemory\InMemoryUserRepository
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          - Permet de tester en condition plus proches de la production que les tests unitaires.
+          - [Bonus] Send an e-mail to the user to notify them their account was created.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Choisir le "bon" type de test</h2>
+
+        <div class="centered-slide-content">
+          <ul>
+            <li class="fragment">Unitaire : pour tout ce qui est strictement dans votre hexagone</li>
+            <li class="fragment">Acceptance : pour le code métier qui intéragit avec les ports</li>
+            <li class="fragment">Integration : pour vos adaptateurs</li>
+            <li class="fragment">End-to-end : scenarios critiques</li>
+          </ul>
+        </div>
+
+        <aside class="notes">
+          - Le end-to-end est le plus couteux, à utiliser avec modération.
+        </aside>
+      </section>
+
+    </section>
+
   </div>
 </div>
 
