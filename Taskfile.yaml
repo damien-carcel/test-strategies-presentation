@@ -17,3 +17,14 @@ tasks:
   default:
     cmds:
       - task --list
+
+  down:
+    cmds:
+      - docker compose down -v --remove-orphans
+    desc: Stop and remove all containers
+
+  up:
+    cmds:
+      - task: dependencies:install
+      - task: run:dev
+    desc: Start and set up the application

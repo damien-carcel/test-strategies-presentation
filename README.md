@@ -3,15 +3,14 @@
 ## Pre-requisites
 
 - Docker
-- Docker Compose v2
+- Docker Compose
 - Task
 
 ## How to use the presentation
 
-First, install the dependencies with `task dependencies:install`.
+Install and run the app with `task up`. This will load the presentation for development mode with hot-reload
 
-Run `task run:dev` for development mode with hot-reload and access the application through
-[http://localhost:8000](http://localhost:8000).
+Then you can access it through [http://localhost:8000](http://localhost:8000).
 
 The full list of actions can be accessed by running the following command in your usual terminal:
 

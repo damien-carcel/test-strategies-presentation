@@ -1,23 +1,16 @@
 version: 3
 
 tasks:
-  bash:
+  cmd:
     aliases:
-      - b
+      - c
     cmds:
-      - docker compose run --rm --build --remove-orphans dev bash
-    desc: Launch a shell in the development container
+      - docker compose run --rm --remove-orphans dev {{.CLI_ARGS}}
+    desc: "Execute a command in the development container. Example: \"task run:cmd -- bash\" will execute bash."
 
   dev:
     aliases:
       - d
     cmds:
-      - docker compose up --build --detach --remove-orphans dev
+      - docker compose up --detach --remove-orphans dev
     desc: Run the development server
-
-  stop:
-    aliases:
-      - s
-    cmds:
-      - docker compose down -v --remove-orphans
-    desc: Stop and remove the presentation containers
