@@ -2,26 +2,13 @@
 
 ## Plan
 
-### Introduction
-
-- Usual issues with tests:
-  - Too many tests using the database ⇒ relatively slow, not scalable.
-    - Illustrate with the end-to-end test.
-  - Massive use of mocks in unit tests to go faster
-    - Illustrate with the unit test with mocked repo.
-    - Makes refacto harder as it requires to update mocks.
-    - You could also forget to update a mock, and tests will still pass. Not good.
-      - Example: inverse arguments in a method call, the test will still pass.
-    - Makes tests coupled to the implementation ⇒ fragile and making refactoring painful.
-      - Give example of coupling => adding a call to a repository in a business service makes previous existing tests fail.
+### How to do better
 
 - Reminder of what makes a "good" test ⇒ F.I.R.S.T. (Medium article that summarizes the topic well).
 
 - Recall the different "doubles" that exist (in-memory, stub, mock) and mocks are not the only solution.
   - But when to use what?
   - In memory => transition with hexagonal architecture and port/adapters.
-
-### How to do better
 
 - Reminder of hexagonal architecture via a diagram to introduce the notion of "test boundaries."
 - The different types of tests: unit, end-to-end, integration, acceptance.

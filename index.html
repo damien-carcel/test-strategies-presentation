@@ -61,6 +61,289 @@
 
     </section>
 
+    <section id="problem">
+
+      <section>
+        <h2 class="title">Cas d'usage</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment">Endpoint d'API permettant de créer un utilisateur</div>
+          <pre class="fragment"><code class="json">
+    POST /users
+    {
+        "email": "john.doe@email.com",
+        "firstname": "John",
+        "lastname": "Doe"
+    }
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Contrôleur</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+#[AsController]
+#[Route(path: '/users', name: 'create_user', methods: [Request::METHOD_POST])]
+final readonly class CreateUserController
+{
+    public function __construct(private CreateUser $createUser)
+    {
+    }
+
+    public function __invoke(
+        #[MapRequestPayload] CreateUserRequest $createUserRequest,
+    ): JsonResponse {
+        ($this->createUser)(
+             $createUserRequest->email,
+             $createUserRequest->firstname,
+             $createUserRequest->lastname,
+        );
+
+        return new JsonResponse(status: Response::HTTP_CREATED);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">Un contrôleur aussi simple que possible</aside>
+      </section>
+
+      <section>
+        <h2 class="title">Service métier</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final readonly class CreateUser
+{
+    public function __construct(private UserRepository $userRepository)
+    {
+    }
+
+    public function __invoke(string $email, string $firstname, string $lastname): void
+    {
+        $user = new User($email, $firstname, $lastname);
+        $this->userRepository->save($user);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          UserRepository::save => entity manager persist + flush.
+          Pour l'instant, le service métier ne gère pas les edges-cases.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Le test</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class CreateUserTest extends KernelTestCase
+{
+    private CreateUser $createUser;
+    private UserRepository $userRepository;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->createUser = self::getService(CreateUser::class);
+        $this->userRepository = self::getService(UserRepository::class);
+    }
+
+    public function testItCreatesAUser(): void
+    {
+        ($this->createUser)('john.doe@email.com', 'John', 'Doe');
+
+        $retrievedUser = $this->userRepository->getByEmail($userEmail);
+        self::assertSame('john.doe@email.com', $retrievedUser->email);
+        self::assertSame('John', $retrievedUser->firstname);
+        self::assertSame('Doe', $retrievedUser->lastname);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          On remplace l'appel au service par un call HTTP via le client de test Symfony,
+          grace au WebTestCase, et on a un test end-to-end.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">La solution habituelle : les mocks</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItCreatesAUser(): void
+    {
+        $userRepository = $this->createMock(UserRepository::class);
+        $createUser = new CreateUser($userRepository);
+
+        $userRepository
+            ->expects($this->once())
+            ->method('save')
+            ->with(self::callback(
+                static fn (User $user): bool => $user->email === 'john.doe@email.com'
+                    && $user->firstname === 'John'
+                    && $user->lastname === 'Doe',
+            ));
+
+        ($createUser)($userEmail, 'John', 'Doe');
+    }
+          </code></pre>
+
+          <div class="fragment">Test couplé à l'implémentation.</div>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et si l'utilisateur existe déjà?</h2>
+
+        <div class="centered-slide-content">
+          <pre class="fragment" style="font-size: large"><code class="php">
+final readonly class CreateUser
+{
+    public function __invoke(string $email, string $firstname, string $lastname): void
+    {
+        if ($this->userAlreadyExists($email)) {
+            throw new UserAlreadyExists($email);
+        }
+
+        $this->userRepository->save(new User($email, $firstname, $lastname));
+    }
+
+    private function userAlreadyExists(string $email): bool
+    {
+        try {
+            $this->userRepository->getByEmail($email);
+        } catch (UserNotFound) {
+            return false;
+        }
+
+        return true;
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Nouveau test pour nouveau scénario</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItThrowsAnExceptionIfUserWithSameEmailAlreadyExists(): void
+    {
+        ($this->createUser)('jane.doe@email.com', 'Jane', 'Doe');
+
+        try {
+            ($this->createUser)('jane.doe@email.com', 'John', 'Doe');
+        } catch (\Throwable $exception) {
+            self::assertInstanceOf(UserAlreadyExists::class, $exception);
+            self::assertSame(
+                'User with email "jane.doe@email.com" already exist.',
+                $exception->getMessage(),
+            );
+
+            $existingUser = $this->userRepository->getByEmail('jane.doe@email.com');
+            self::assertSame('Jane', $existingUser->firstname);
+
+            return;
+        }
+
+        self::fail('An exception should have been thrown.');
+    }
+          </code></pre>
+
+          <div class="fragment">Mon test fonctionnel précédent fonctionne toujours.</div>
+        </div>
+
+        <aside class="notes">
+          - Je vérifie en BDD que l'utilisateur d'origine n'a pas été modifié.
+          - Mon test fonctionnel précédent fonctionne toujours.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et avec les mocks ?</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItThrowsAnExceptionIfUserWithSameEmailAlreadyExists(): void
+    {
+        $userRepository = $this->createMock(UserRepository::class);
+        $createUser = new CreateUser($userRepository);
+
+        $userRepository->expects($this->never())->method('save');
+        $userRepository
+            ->expects($this->once())
+            ->method('getByEmail')
+            ->with('jane.doe@email.com')
+            ->willReturn(new User('jane.doe@email.com', 'Jane', 'Doe'));
+
+        $this->expectException(UserAlreadyExists::class);
+        $this->expectExceptionMessage('User with email "jane.doe@email.com" already exist.');
+        ($createUser)('jane.doe@email.com', 'John', 'Doe');
+    }
+          </code></pre>
+
+          <div class="fragment">Mon test précédent ne fonctionne plus 😞.</div>
+        </div>
+
+        <aside class="notes">
+          - Je dois vérifier que "save" n'est pas appelé, car je ne peux pas aller en BDD vérifier que l'utilisateur n'a
+          pas été modifié.
+          - Je dois mocker un nouvel appel à "getByEmail" => couplage.
+          - Si quelque chose ne va pas avec le repository, ce test ne le montrera jamais.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Test avec mocks = couplage</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php" data-line-numbers="6-12">
+    public function testItCreatesAUser(): void
+    {
+        $userRepository = $this->createMock(UserRepository::class);
+        $createUser = new CreateUser($userRepository);
+
+        $userRepository
+            ->expects($this->once())
+            ->method('getByEmail')
+            ->with($userEmail)
+            ->willThrowException(new UserNotFound($userEmail));
+
+        $userRepository
+            ->expects($this->once())
+            ->method('save')
+            ->with(self::callback(
+                static fn (User $user): bool => $user->email === 'john.doe@email.com'
+                    && $user->firstname === 'John'
+                    && $user->lastname === 'Doe',
+            ));
+
+        ($createUser)($userEmail, 'John', 'Doe');
+    }
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          - Mon test précédent ne fonctionne plus, car il a besoin du nouveau mock lui aussi.
+        </aside>
+      </section>
+
+    </section>
+
   </div>
 </div>
 
