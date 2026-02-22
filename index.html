@@ -2,37 +2,727 @@
 <html lang="en" xmlns="http://www.w3.org/1999/html">
 
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8"/>
 
   <title>Test Strategies With Hexagonal Architecture</title>
 
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-  <link rel="manifest" href="/site.webmanifest" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png"/>
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png"/>
+  <link rel="manifest" href="/site.webmanifest"/>
 
-  <meta name="description" content="Development in PHP with Docker" />
-  <meta name="author" content="Damien Carcel" />
+  <meta name="description" content="Development in PHP with Docker"/>
+  <meta name="author" content="Damien Carcel"/>
 
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui" />
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui"/>
 </head>
 
 <body>
-  <div class="reveal">
-    <div class="slides">
+<div class="reveal">
+  <div class="slides">
+
+    <section>
+      <h2>
+        Stratégies de test <br>
+        et architecture héxagonale
+      </h2>
+    </section>
+
+    <section id="intro">
 
       <section>
-        <h2>Test Strategies<br>With<br>Hexagonal Architecture</h2>
+        <h2 class="top-slide-header">Qui suis-je?</h2>
+
+        <div class="centered-slide-content two-columns-slide">
+          <div class="col"><img alt="pingoo" src="images/pingoo.png" height="300px">
+            <br>
+            <b>Damien Carcel</b>
+            <br>
+            <i>Software Engineer @ Akeneo</i>
+          </div>
+          <div class="col">
+            <br>
+            <br>
+            <div><img class="vertical-align" alt="github" src="images/github-logo.png" height="50px">&nbsp;<a
+              class="vertical-align" href="https://github.com/damien-carcel">damien-carcel</a></div>
+            <div><img class="vertical-align" alt="twitter" src="images/mastodon-logo.png" height="50px">&nbsp;<a
+              class="vertical-align" href="https://social.tchncs.de/@damiencarcel">@damiencarcel</a></div>
+            <div><img class="vertical-align" alt="linkedin" src="images/linkedin-logo.png" height="50px">&nbsp;<a
+              class="vertical-align" href="https://www.linkedin.com/in/damien-carcel/">damien-carcel</a></div>
+          </div>
+        </div>
+
+        <aside class="notes"></aside>
       </section>
 
-    </div>
-  </div>
+    </section>
 
-  <script type="module" src="/main.js"></script>
+    <section id="problem">
+
+      <section>
+        <h2 class="title">Cas d'usage</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment">Endpoint d'API permettant de créer un utilisateur</div>
+          <pre class="fragment"><code class="json">
+    POST /users
+    {
+        "email": "john.doe@email.com",
+        "firstname": "John",
+        "lastname": "Doe"
+    }
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Contrôleur</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+#[AsController]
+#[Route(path: '/users', name: 'create_user', methods: [Request::METHOD_POST])]
+final readonly class CreateUserController
+{
+    public function __construct(private CreateUser $createUser)
+    {
+    }
+
+    public function __invoke(
+        #[MapRequestPayload] CreateUserRequest $createUserRequest,
+    ): JsonResponse {
+        ($this->createUser)(
+             $createUserRequest->email,
+             $createUserRequest->firstname,
+             $createUserRequest->lastname,
+        );
+
+        return new JsonResponse(status: Response::HTTP_CREATED);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">Un contrôleur aussi simple que possible</aside>
+      </section>
+
+      <section>
+        <h2 class="title">Service métier</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final readonly class CreateUser
+{
+    public function __construct(private UserRepository $userRepository)
+    {
+    }
+
+    public function __invoke(string $email, string $firstname, string $lastname): void
+    {
+        $user = new User($email, $firstname, $lastname);
+        $this->userRepository->save($user);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          UserRepository::save => entity manager persist + flush.
+          Pour l'instant, le service métier ne gère pas les edges-cases.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Test fonctionnel</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class CreateUserTest extends KernelTestCase
+{
+    private CreateUser $createUser;
+    private UserRepository $userRepository;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->createUser = self::getService(CreateUser::class);
+        $this->userRepository = self::getService(UserRepository::class);
+    }
+
+    public function testItCreatesAUser(): void
+    {
+        ($this->createUser)('john.doe@email.com', 'John', 'Doe');
+
+        $retrievedUser = $this->userRepository->getByEmail($userEmail);
+        self::assertSame('john.doe@email.com', $retrievedUser->email);
+        self::assertSame('John', $retrievedUser->firstname);
+        self::assertSame('Doe', $retrievedUser->lastname);
+    }
+}
+          </code></pre>
+
+          <div class="fragment">Utilise la base de donnée = lent</div>
+        </div>
+
+        <aside class="notes">
+          On remplace l'appel au service par un call HTTP via le client de test Symfony,
+          grace au WebTestCase, et on a un test end-to-end.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">La solution habituelle : les mocks</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItCreatesAUser(): void
+    {
+        $userRepository = $this->createMock(UserRepository::class);
+        $createUser = new CreateUser($userRepository);
+
+        $userRepository
+            ->expects($this->once())
+            ->method('save')
+            ->with(self::callback(
+                static fn (User $user): bool => $user->email === 'john.doe@email.com'
+                    && $user->firstname === 'John'
+                    && $user->lastname === 'Doe',
+            ));
+
+        ($createUser)($userEmail, 'John', 'Doe');
+    }
+          </code></pre>
+
+          <div class="fragment">Rapide, mais couplé à l'implémentation.</div>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et si l'utilisateur existe déjà?</h2>
+
+        <div class="centered-slide-content">
+          <pre class="fragment" style="font-size: large"><code class="php">
+final readonly class CreateUser
+{
+    public function __invoke(string $email, string $firstname, string $lastname): void
+    {
+        if ($this->userAlreadyExists($email)) {
+            throw new UserAlreadyExists($email);
+        }
+
+        $this->userRepository->save(new User($email, $firstname, $lastname));
+    }
+
+    private function userAlreadyExists(string $email): bool
+    {
+        try {
+            $this->userRepository->getByEmail($email);
+        } catch (UserNotFound) {
+            return false;
+        }
+
+        return true;
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Nouveau test pour nouveau scénario</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItThrowsAnExceptionIfUserWithSameEmailAlreadyExists(): void
+    {
+        ($this->createUser)('jane.doe@email.com', 'Jane', 'Doe');
+
+        try {
+            ($this->createUser)('jane.doe@email.com', 'John', 'Doe');
+        } catch (\Throwable $exception) {
+            self::assertInstanceOf(UserAlreadyExists::class, $exception);
+            self::assertSame(
+                'User with email "jane.doe@email.com" already exist.',
+                $exception->getMessage(),
+            );
+
+            $existingUser = $this->userRepository->getByEmail('jane.doe@email.com');
+            self::assertSame('Jane', $existingUser->firstname);
+
+            return;
+        }
+
+        self::fail('An exception should have been thrown.');
+    }
+          </code></pre>
+
+          <div class="fragment">Mon test fonctionnel précédent fonctionne toujours.</div>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Je vérifie en BDD que l'utilisateur d'origine n'a pas été modifié.</li>
+            <li>Mon test fonctionnel précédent fonctionne toujours.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et avec les mocks ?</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItThrowsAnExceptionIfUserWithSameEmailAlreadyExists(): void
+    {
+        $userRepository = $this->createMock(UserRepository::class);
+        $createUser = new CreateUser($userRepository);
+
+        $userRepository->expects($this->never())->method('save');
+        $userRepository
+            ->expects($this->once())
+            ->method('getByEmail')
+            ->with('jane.doe@email.com')
+            ->willReturn(new User('jane.doe@email.com', 'Jane', 'Doe'));
+
+        $this->expectException(UserAlreadyExists::class);
+        $this->expectExceptionMessage('User with email "jane.doe@email.com" already exist.');
+        ($createUser)('jane.doe@email.com', 'John', 'Doe');
+    }
+          </code></pre>
+
+          <div class="fragment">Mon test précédent ne fonctionne plus 😞.</div>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>
+              Je dois vérifier que "save" n'est pas appelé, car je ne peux pas aller en BDD vérifier que l'utilisateur
+              n'a pas été modifié.
+            </li>
+            <li>Je dois mocker un nouvel appel à "getByEmail" => couplage.</li>
+            <li>Si quelque chose ne va pas avec le repository, ce test ne le montrera jamais.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Test avec mocks = couplage</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php" data-line-numbers="6-12">
+    public function testItCreatesAUser(): void
+    {
+        $userRepository = $this->createMock(UserRepository::class);
+        $createUser = new CreateUser($userRepository);
+
+        $userRepository
+            ->expects($this->once())
+            ->method('getByEmail')
+            ->with($userEmail)
+            ->willThrowException(new UserNotFound($userEmail));
+
+        $userRepository
+            ->expects($this->once())
+            ->method('save')
+            ->with(self::callback(
+                static fn (User $user): bool => $user->email === 'john.doe@email.com'
+                    && $user->firstname === 'John'
+                    && $user->lastname === 'Doe',
+            ));
+
+        ($createUser)($userEmail, 'John', 'Doe');
+    }
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          Mon test précédent ne fonctionne plus, car il a besoin du nouveau mock lui aussi.
+        </aside>
+      </section>
+
+    </section>
+
+    <section id="solution">
+
+      <section>
+        <h2 class="title">C'est quoi un "bon" test ?</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment"><br><b>F.I.R.S.T.</b></div>
+          <br>
+          <ul>
+            <li class="fragment"><b>F</b>ast : on veut un retour succès/échec rapide</li>
+            <li class="fragment"><b>I</b>solated : teste une chose et une seule, pas d'effets de bord</li>
+            <li class="fragment"><b>R</b>epeatable : un test doit être stable</li>
+            <li class="fragment"><b>S</b>elf-validating : pas de doute sur le succès ou l'échec</li>
+            <li class="fragment"><b>T</b>hourough : couvre tout le métier</li>
+          </ul>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Rapide, isolé, répétable, auto-validant, approfondi/opportun</li>
+            <li>Isolé : une chose => Given/When/Then ou Arrange/Act/Assert permet de le garantir</li>
+            <li>Effets de bords = couplage</li>
+            <li>Self-validating : si une refacto casse votre test, alors il n'est pas auto-validant. Donc il ne doit pas
+              être couplé
+            </li>
+            <li>Thourough : le TDD répond très bien à cette problématique</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">C'est quoi un "bon" test ?</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment"><br>Focalisé sur le métier</div>
+          <div class="fragment"><br>Simple</div>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Simple => un test doit pouvoir servir de documentation du métier</li>
+            <li>Des mocks qu'on doit changer au cours du développement n'aident pas à cette simplicité</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Il n'y a pas que les mocks dans la vie</h2>
+
+        <div class="centered-slide-content">
+          <div class="fragment"><b>Doublures (test doubles)</b></div>
+          <br>
+          <ul>
+            <li class="fragment">Stub : simple description</li>
+            <li class="fragment">Mock : doit être exécuté</li>
+            <li class="fragment">Spy : vérification après exécution</li>
+            <li class="fragment">…</li>
+            <li class="fragment">Double en mémoire</li>
+          </ul>
+        </div>
+
+        <aside class="notes">
+          Le double en mémoire est une vraie implémentation, pleinement fonctionnelle, contrairement aux mocks, stubs et
+          spies.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">L'architecture hexagonale</h2>
+
+        <div class="centered-slide-content">
+          <img class="fragment" alt="hexagonal.png" src="images/hexagonal.png"/>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Créée en 2005 par Alistair Cockburn (pronounced Cōburn)</li>
+            <li>Côté gauche : contrôleur, côté droit = contrôlé => inversion de dépendance</li>
+            <li>Les détails d'implémentation vont dans les adaptateurs, hors de la logique métier</li>
+            <li>Les tests peuvent être vu comme un adaptateur contrôlant</li>
+            <li>Oubliez les layers multiples, ce n'est pas de la clean architecture</li>
+            <li>Ce n'est pas non plus du DDD ou du CQRS</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Exemple d'adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class DatabaseUserRepository extends ServiceEntityRepository implements UserRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, User::class);
+    }
+
+    public function save(User ...$users): void
+    {
+        foreach ($users as $user) {
+            $this->getEntityManager()->persist($user);
+        }
+        $this->getEntityManager()->flush();
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          L'interface est le "port".
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Exemple d'adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class InMemoryUserRepository implements UserRepository
+{
+    /** @var User[] */
+    private array $users = [];
+
+    public function save(User ...$users): void
+    {
+        foreach ($users as $user) {
+            $this->users[] = clone $user;
+        }
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Tester les adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+final class UserRepositoryTest extends AbstractIntegrationTestCase
+{
+    private readonly UserRepository $repository;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->repository = self::getService(UserRepository::class);
+    }
+
+    #[Group('with-in-memory-adapters')]
+    #[Group('with-production-adapters')]
+    public function testItSavesAUser(): void
+    {
+        $user = new User('john.doe@email.com', 'John', 'Doe');
+
+        $this->repository->save($user);
+
+        $this->assertUserIsStored($user);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>
+              Test d'intégration => intégration avec les élémentes extérieurs à l'application (système de fichier,
+              base de donnée, etc.)
+            </li>
+            <li>
+              /!\ Un seul test pour tous les adaptateurs d'un même port => garantie la fiabilité de l'implémentation
+              "in memory"
+            </li>
+            <li>Le repo doit être correctement testé : Thourough !</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Tester les adaptateurs</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+abstract class AbstractIntegrationTestCase extends KernelTestCase
+{
+    protected static function bootKernel(array $options = []): KernelInterface
+    {
+        $testEnvironment = self::getCurrentTestEnvironment();
+
+        if (!\in_array($testEnvironment, ['memory', 'test'], true)) {
+            throw new \RuntimeException(
+                "Invalid TEST_ENV environment variable value \"$testEnvironment\".,
+            );
+        }
+
+        $options = array_merge($options, ['environment' => $testEnvironment]);
+
+        return parent::bootKernel($options);
+    }
+}
+          </code></pre>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">Tester le métier unitairement</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+    public function testItCreatesAUser(): void
+    {
+        $userRepository = new InMemoryUserRepository();
+        $createUser = new CreateUser($userRepository);
+
+        ($createUser)('john.doe@email.com', 'John', 'Doe');
+
+        $retrievedUser = $userRepository->getByEmail('john.doe@email.com');
+        self::assertSame($userEmail, $retrievedUser->email);
+        self::assertSame('John', $retrievedUser->firstname);
+        self::assertSame('Doe', $retrievedUser->lastname);
+    }
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Pas de couplage avec l'implémentation</li>
+            <li>
+              Ce test ne cassera pas lors de l'ajout de fonctionnalités comme vérifier si un utilisateur existe déjà
+              => isolé et auto-validant
+            </li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et avec le framework ?</h2>
+
+        <div class="centered-slide-content">
+          <pre class="fragment" style="font-size: large"><code class="php">
+final class CreateUserTest extends AbstractAcceptanceTestCase
+{
+    private CreateUser $createUser;
+    private UserRepository $userRepository;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->createUser = self::getService(CreateUser::class);
+        $this->userRepository = self::getService(UserRepository::class);
+    }
+
+    public function testItCreatesAUser(): void
+    {
+        ($this->createUser)('john.doe@email.com', 'John', 'Doe');
+
+        $retrievedUser = $this->userRepository->getByEmail($userEmail);
+        self::assertSame('john.doe@email.com', $retrievedUser->email);
+        self::assertSame('John', $retrievedUser->firstname);
+        self::assertSame('Doe', $retrievedUser->lastname);
+    }
+}
+          </code></pre>
+
+          <div class="fragment">Tests "d'acceptance"</div>
+        </div>
+
+        <aside class="notes">
+          Le test d'acceptance intègre les ports.
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Et avec le framework ?</h2>
+
+        <div class="centered-slide-content">
+          <pre style="font-size: large"><code class="php">
+abstract class AbstractAcceptanceTestCase extends KernelTestCase
+{
+    protected static function bootKernel(array $options = []): KernelInterface
+    {
+        $options = array_merge($options, ['environment' => 'memory']);
+
+        return parent::bootKernel($options);
+    }
+}
+          </code></pre>
+          <pre class="fragment" style="font-size: large"><code class="yaml">
+# config/services.yaml
+when@memory:
+    services:
+        App\Domain\Repository\UserRepository:
+            class: App\Infrastructure\Persistence\InMemory\InMemoryUserRepository
+          </code></pre>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Permet de tester en condition plus proches de la production que les tests unitaires.</li>
+            <li>[Bonus] Send an e-mail to the user to notify them their account was created.</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">Choisir le "bon" type de test</h2>
+
+        <div class="centered-slide-content">
+          <ul>
+            <li class="fragment">Unitaire : pour tout ce qui est strictement dans votre hexagone</li>
+            <li class="fragment">Acceptance : pour le code métier qui intéragit avec les ports</li>
+            <li class="fragment">Integration : pour vos adaptateurs</li>
+            <li class="fragment">End-to-end : scenarios critiques</li>
+          </ul>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Le end-to-end est le plus couteux, à utiliser avec modération.</li>
+          </ul>
+        </aside>
+      </section>
+
+    </section>
+
+    <section id="conclusion">
+
+      <section>
+        <h2 class="title">Conclusion</h2>
+
+        <div class="centered-slide-content">
+          <ul>
+            <li class="fragment">Doubles "in memory" = tests métier rapides et fiables</li>
+            <li class="fragment">Pas d'effets de bords lors de refactorisation de code</li>
+            <li class="fragment">Assure le respect des règles métier</li>
+          </ul>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <h2 class="title">No silver bullet</h2>
+
+        <div class="centered-slide-content">
+          <ul>
+            <li class="fragment">Requiert un bon design du code avec des séparations claires</li>
+            <li class="fragment">Plusieurs types de tests</li>
+            <li class="fragment">Implémentation "in memory" systématique pour tous les ports contrôlés</li>
+            <li class="fragment">Pas appliquable sur tout, par exemple requêtes de lecture complexes</li>
+          </ul>
+        </div>
+
+        <aside class="notes"></aside>
+      </section>
+
+      <section>
+        <div class="centered-slide-content thank-you">Merci de votre attention</div>
+      </section>
+
+    </section>
+
+  </div>
+</div>
+
+<script type="module" src="/main.js"></script>
 </body>
 
 </html>
