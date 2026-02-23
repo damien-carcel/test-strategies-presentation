@@ -12,4 +12,6 @@ import RevealNotes from 'reveal.js/plugin/notes/notes';
 const deck = new Reveal({
   plugins: [RevealHighlight, RevealNotes],
 });
-deck.initialize();
+deck.initialize({
+  transition: 'none',
+});
