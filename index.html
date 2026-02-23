@@ -423,7 +423,7 @@ final readonly class CreateUser
         <h2 class="title">L'architecture hexagonale</h2>
 
         <div class="centered-slide-content">
-          <img class="fragment" alt="hexagonal.png" src="images/hexagonal.png"/>
+          <img class="fragment" alt="hexagonal.svg" src="images/hexagonal.svg"/>
         </div>
 
         <aside class="notes">
@@ -431,6 +431,33 @@ final readonly class CreateUser
             <li>Créée en 2005 par Alistair Cockburn (pronounced Cōburn)</li>
             <li>Côté gauche : contrôleur, côté droit = contrôlé => inversion de dépendance</li>
             <li>Les détails d'implémentation vont dans les adaptateurs, hors de la logique métier</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">L'architecture hexagonale</h2>
+
+        <div class="centered-slide-content">
+          <img alt="hexagonal-switch-persistence.svg" src="images/hexagonal-switch-persistence.svg"/>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Les adaptateurs peuvent être remplacés sans aucun impact sur la logique métier</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">L'architecture hexagonale</h2>
+
+        <div class="centered-slide-content">
+          <img alt="hexagonal-switch-tests.svg" src="images/hexagonal-switch-tests.svg"/>
+        </div>
+
+        <aside class="notes">
+          <ul>
             <li>Les tests peuvent être vu comme un adaptateur contrôlant</li>
             <li>Oubliez les layers multiples, ce n'est pas de la clean architecture</li>
             <li>Ce n'est pas non plus du DDD ou du CQRS</li>
