@@ -583,6 +583,13 @@ abstract class AbstractIntegrationTestCase extends KernelTestCase
     }
 }
           </code></pre>
+          <pre class="fragment" style="font-size: large"><code class="yaml">
+# config/services.yaml
+when@memory:
+    services:
+        App\Domain\Repository\UserRepository:
+            class: App\Infrastructure\Persistence\InMemory\InMemoryUserRepository
+          </code></pre>
         </div>
 
         <aside class="notes"></aside>
@@ -670,13 +677,6 @@ abstract class AbstractAcceptanceTestCase extends KernelTestCase
         return parent::bootKernel($options);
     }
 }
-          </code></pre>
-          <pre class="fragment" style="font-size: large"><code class="yaml">
-# config/services.yaml
-when@memory:
-    services:
-        App\Domain\Repository\UserRepository:
-            class: App\Infrastructure\Persistence\InMemory\InMemoryUserRepository
           </code></pre>
         </div>
 
