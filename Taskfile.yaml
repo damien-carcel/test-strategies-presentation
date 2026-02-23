@@ -27,4 +27,5 @@ tasks:
     cmds:
       - task: dependencies:install
       - task: run:dev
+      - echo "Presentation is running and can be accessed at http://localhost:8000"
     desc: Start and set up the application
