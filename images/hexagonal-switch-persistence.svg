@@ -1388,13 +1388,13 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1"
-     inkscape:cx="365.5"
+     inkscape:cx="366.5"
      inkscape:cy="216"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
      showgrid="false"
-     inkscape:window-width="2560"
+     inkscape:window-width="1920"
      inkscape:window-height="1012"
      inkscape:window-x="0"
      inkscape:window-y="38"
@@ -1571,12 +1571,7 @@
          x="179.03409"
          y="80.97242"
          style="font-size:6.35px;text-align:center;text-anchor:middle;fill:#800000;fill-opacity:1;stroke-width:0.264583"
-         id="tspan2361">Adaptateur</tspan><tspan
-         sodipodi:role="line"
-         x="179.03409"
-         y="87.639915"
-         style="font-size:6.35px;text-align:center;text-anchor:middle;fill:#800000;fill-opacity:1;stroke-width:0.264583"
-         id="tspan490">&quot;production&quot;</tspan></text>
+         id="tspan490">BDD</tspan></text>
     <path
        id="rect892-3-5"
        style="opacity:0.99;fill:#b30000;fill-opacity:1;stroke:none;stroke-width:0.529;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
