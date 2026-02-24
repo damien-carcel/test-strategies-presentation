@@ -180,7 +180,7 @@ final class CreateUserTest extends KernelTestCase
         <h2 class="title">La solution habituelle : les mocks</h2>
 
         <div class="centered-slide-content">
-          <pre style="font-size: large"><code class="php">
+          <pre class="fragment" style="font-size: large"><code class="php">
     public function testItCreatesAUser(): void
     {
         $userRepository = $this->createMock(UserRepository::class);
@@ -405,8 +405,8 @@ final readonly class CreateUser
           <div class="fragment"><b>Doublures (test doubles)</b></div>
           <br>
           <ul>
-            <li class="fragment">Stub : simple description</li>
             <li class="fragment">Mock : doit être exécuté</li>
+            <li class="fragment">Stub : simple description</li>
             <li class="fragment">Spy : vérification après exécution</li>
             <li class="fragment">…</li>
             <li class="fragment">Double en mémoire</li>
@@ -423,13 +423,40 @@ final readonly class CreateUser
         <h2 class="title">L'architecture hexagonale</h2>
 
         <div class="centered-slide-content">
-          <img class="fragment" alt="hexagonal.svg" src="images/hexagonal.svg"/>
+          <img class="fragment" alt="hexagon-only.svg" src="images/hexagon-only.svg"/>
         </div>
 
         <aside class="notes">
           <ul>
             <li>Créée en 2005 par Alistair Cockburn (pronounced Cōburn)</li>
-            <li>Côté gauche : contrôleur, côté droit = contrôlé => inversion de dépendance</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">L'architecture hexagonale</h2>
+
+        <div class="centered-slide-content">
+          <img alt="hexagon-with-ports.svg" src="images/hexagon-with-ports.svg"/>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Côté gauche : contrôleur/utilisateur, côté droit = contrôlé/serveur</li>
+          </ul>
+        </aside>
+      </section>
+
+      <section>
+        <h2 class="title">L'architecture hexagonale</h2>
+
+        <div class="centered-slide-content">
+          <img alt="hexagonal.svg" src="images/hexagonal.svg"/>
+        </div>
+
+        <aside class="notes">
+          <ul>
+            <li>Inversion de dépendance entre les ports et les adaptateurs contrôlés</li>
             <li>Les détails d'implémentation vont dans les adaptateurs, hors de la logique métier</li>
           </ul>
         </aside>
