@@ -1,5 +1,7 @@
 # Test Strategies With Hexagonal Architecture
 
+This presentation can be accessed through [https://testing-strategies.carcel.dev/](https://testing-strategies.carcel.dev/).
+
 ## Pre-requisites
 
 - Docker
