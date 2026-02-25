@@ -2,6 +2,8 @@
 
 This presentation can be accessed through [https://testing-strategies.carcel.dev/](https://testing-strategies.carcel.dev/).
 
+It uses [reveal.js](https://revealjs.com/) as a presentation framework.
+
 ## Pre-requisites
 
 - Docker
@@ -22,4 +24,10 @@ $ task
 
 ## License
 
-This repository is under the MIT license. You can see the complete license in the [LICENSE](./LICENSE) file.
+This repository is under the [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) license.
+You can see the complete license in the [LICENSE](./LICENSE) file.
+
+The 3 following logos are, however, not under this license and are the property of their respective owners:
+- [images/github-logo.png](./images/github-logo.png)
+- [images/linkedin-logo.png](./images/linkedin-logo.png)
+- [images/mastodon-logo.png](./images/mastodon-logo.png)
