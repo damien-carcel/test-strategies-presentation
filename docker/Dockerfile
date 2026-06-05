@@ -6,7 +6,7 @@ ARG DEV_GID
 RUN groupmod --gid $DEV_GID node && \
     usermod --uid $DEV_UID --gid $DEV_GID node
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@latest-11
 
 USER node:node
 
