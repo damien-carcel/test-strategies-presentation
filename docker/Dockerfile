@@ -1,4 +1,4 @@
-FROM node:lts-slim
+FROM node:26-slim
 
 ARG DEV_UID
 ARG DEV_GID
